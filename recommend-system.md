@@ -171,9 +171,18 @@ $a_{out}$表示输出层激活函数，$\vec h$表示边权。
 问题1: 这个预测因素(the number of predictive factors，代码中是num_factors，用于Embedding时的output_dim了)到底是什么？
 
 问题2: 在使用预训练的NeuMF中，代码中，优化器并没有切换到SGD(论文中在3.4.1节说要在预训练模型中使用SGD)。
+![picture 17](assets/images/1682237389170.png)
+
+裁剪数据集后，下图分别是GMF、MLP、NeuMF(Adam)和NeuMF(SGD)：
+![picture 19](assets/images/1682322742407.png)  
+![picture 20](assets/images/1682322747129.png)  
+![picture 21](assets/images/1682322760186.png)  
+![picture 22](assets/images/1682322766085.png)  
+
+对于NeuMF，优化器从Adam改为SGD后，训练速度有所提升，但是HR和NDCG下降了。
 
 #### 3. 感悟
-作为第一篇文献，一上来最直接的感受就是"哇，好多专业名词"，所以在读论文的过程中不断地查阅和学习相关知识，让我对这个方向有了一点了解。
+作为第一篇文献，一上来最直接的感受就是"哇，好多专业名词"，所以在读论文的过程中不断地查阅和学习相关知识，这也让我对这个方向有了一些了解。
 
 通过读论文，我发现自己的机器学习相关基础知识的储备还不够，所以我接下来要加快学习的步伐，打好基础。
 
