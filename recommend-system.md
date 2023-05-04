@@ -188,3 +188,8 @@ $a_{out}$表示输出层激活函数，$\vec h$表示边权。
 
 #### 4. 附录
 论文的每一章的小结。对于第1节INTRODUCTION，了解了本文要做的工作，初步了解了矩阵分解MF。对于第2节PRELIMINARIES，定义了用户-物品交互矩阵，通过举例的方式，展示了MF的简单内积的局限性。对于第3节NCF，主要介绍了NCF的总体框架，还证明了MF是NCF的一个特例，并且实现了三个NCF实例(分别是GMF，MLP和NeuMF)。对于第4节EXPERIMENTS，文中先提出了试验阶段要回答的三个问题，并说明了实验的设置(包括数据集，评价方法，Baselines和实验参数)，然后针对每个问题做了相关实验。对于第5节是相关工作。第6节是总结和展望。
+
+## FREEDOM(Freezing and Denoising Graph Structures for Multimodal Recommendation)
+认为LATTICE的潜在图学习结构是低效且不必要的。实验证明，在训练之前冻结物品-物品的结构也可以达到相匹敌的性能。基于这一发现，提出了FREEDOM(FREEzes the item-item graph and DenOises the user-item interaction graph simultaneously for Multimodal recommendation)。
+
+## LATTICE(Mining Latent Structures for Multimedia Recommendation)
