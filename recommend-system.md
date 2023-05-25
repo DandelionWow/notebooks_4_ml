@@ -193,3 +193,43 @@ $a_{out}$表示输出层激活函数，$\vec h$表示边权。
 认为LATTICE的潜在图学习结构是低效且不必要的。实验证明，在训练之前冻结物品-物品的结构也可以达到相匹敌的性能。基于这一发现，提出了FREEDOM(FREEzes the item-item graph and DenOises the user-item interaction graph simultaneously for Multimodal recommendation)。
 
 ## LATTICE(Mining Latent Structures for Multimedia Recommendation)
+先前的工作
+
+### 模型框架
+$U$和$I$为用户集和物品集，$u$表示一个用户，$u∈U$。如果用户$u$与物品$i$有关联，那么说有正反馈，用$y_{ui}=1$表示，其中$i∈I^u$。用$x_u,x_i∈R^d$表示某个用户和物品的输入ID嵌入，其中$d$表示嵌入层的维度。用$e^m_i∈R^{d_m}$表示物品$i$的某个模态的特征，其中$d_m$表示某个模特下的特征的维度，用$m∈M$表示模态，$M$表示模态集。
+
+模型共分为3各部分：1.Modality-aware Latent Structure Learning，2.Graph Convolutions和3.Combining with Collaborative Filtering。如下图。
+![picture 1](assets/images/1685004655739.png)
+
+#### 1. Modality-aware Latent Structure Learning
+##### 第一步，Constructing initial 𝑘NN modality-aware graphs $\widetilde{S^m}$
+1. 首先，对于$e^m_i$，计算与另一特征$e^m_j$之间的**余弦相似度**，得到图邻接矩阵$S^m_{ij}$，如下**公式(1)**$S^m_{ij}=\frac{(e^m_i)^Te^m_j}{||e^m_i||||e^m_j||}$。
+2. 其次，控制邻接矩阵的元素非负，范围为$[0,1]$。
+3. 然后，利用`kNN`稀疏化邻接矩阵，如下**公式(2)**$\hat{S^m_{ij}}=\begin{cases}
+    S^m_{ij} & S^m_{ij}∈topk(S^m_i) \\
+    0 & otherwise
+\end{cases}$，其中结果$\hat{S^m}$是**稀疏化的有向图邻接矩阵**。
+4. 最后，对$\hat{S^m}$进行归一化，如下**公式(3)**$\widetilde{S^m}=(D^m)^{-\frac{1}{2}}\hat{S^m}(D^m)^{-\frac{1}{2}}$，其中$D^m$表示$\hat{S^m}$的**对角度矩阵**，其计算方法为$D^m_{ii}=\sum_{j}\hat{S^m_{ij}}$，由此可以看出$D^m$只有对角线元素，元素值为$\hat{S^m}$的第$i$行元素之和。
+
+##### 第二步，Learning latent structures $A^m$
+1. 首先，对于$e^m_i$，计算**high-level feature vector**，如下**公式(4)**$\widetilde{e^m_i}=W_me^m_i+b_m$，其中，$W_m \in R^{d'\times d_m}$定义为**trainable transformation matrix**，$b_m \in R^{d'}$。
+2. 然后，对$\widetilde{e^m_i}$根据公式(1)(2)(3)计算出邻接矩阵$\widetilde{A^m}$。
+3. 最后，根据**公式(5)**$A^m=\lambda \widetilde{S^m}+(1-\lambda) \widetilde{A^m}$，得出最终的**图邻接矩阵**，其中，系数$\lambda \in (0,1)$，$\widetilde{S^m}$为上一步最后的计算结果。
+
+##### 第三步，Aggregating multimodal latent graphs 得到 $A$
+1. 首先，利用**公式(6)**$A=\sum_{m=0}^{|M|}a_mA^m$计算出最终的**Latent Structure**$A$，其中，$a_m$是模态$m$的重要度评分，$A$是表示多个模态的物品关系的图结构。
+2. 最后，使用**softmax function**让$A$归一化，并使$\sum_{m=0}^{|M|}a_m=1$。
+
+#### 2. Graph Convolutions
+利用**公式(7)**$h_i^{(l)}=\sum \limits_{j\in N(i)}A_{ij}h_j^{(l-1)}$进行图卷积，其中$N(i)$表示物品$i$的邻接物品，$h_i^{(l)}\in R^d$表示第$l$层的物品$i$的表示。
+
+> We set the input item representation $h_i^{(0)}$ as its corresponding ID embedding vector $x_i$.
+> After stacking $L$ layers, $h_i^{(L)}$ encodes the high-order item-item relationships that are constructed by multimodal information and thus can benefit the downstream CF methods.
+
+#### 3. Combining with Collaborative Filtering
+在任何CF方法之前使用以上步骤。
+
+将$\widetilde{x_u},\widetilde{x_i}\in R^d$定义为CF方法的用户和物品嵌入的输出。然后，通过增加从物品图中学习到的归一化的物品嵌入$h_i^{(L)}$增强物品嵌入，如**公式(8)**$\hat x_i=\widetilde{x_i}+\frac{h_i^{(L)}}{||h_i^{(L)}||_2}$。最后，计算**用户-物品偏好得分**(the user-item preference score)，如**公式(9)**$\hat y_{ui}=\widetilde x_u^T \hat x_i$。
+
+#### 4. Optimization
+使用**Bayesian Personalized Ranking (BPR) loss**。
