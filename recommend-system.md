@@ -192,29 +192,50 @@ $a_{out}$表示输出层激活函数，$\vec h$表示边权。
 ## FREEDOM(Freezing and Denoising Graph Structures for Multimodal Recommendation)
 认为LATTICE的潜在图学习结构是低效且不必要的。实验证明，在训练之前冻结物品-物品的结构也可以达到相匹敌的性能。基于这一发现，提出了FREEDOM(FREEzes the item-item graph and DenOises the user-item interaction graph simultaneously for Multimodal recommendation)。
 
+> Compared with LATTICE, FREEDOM achieves an average improvement of 19.07% in recommendation accuracy while reducing its memory cost up to 6× on large graphs.
+
+### 模型框架
+模型共分为四个部分：1.Constructing Frozen Item-Item Graph；2.Denoising User-Item Bipartite Graph；3.Integration of Two Graphs for Learning；4.Top-K Recommendation。
+
+#### 1.Constructing Frozen Item-Item Graph $S-Frozen$
+FREEDOM也是对每个**模态**$m$的**原始特征**使用**kNN**构建**初始模态感知“物品-物品”图**$S^m$。
+
+1. 首先，$N$个物品，对初始特征$x_i^m$和$x_j^m$计算**余弦相似性**，如**公式(1)**$S^m_{ij}=\frac{(x^m_i)^Tx^m_j}{||x^m_i||||x^m_j||}$，其中$S^m_{ij}$是矩阵$S^m\in R^{N\times N}$的第$i$行，第$j$列的元素。
+2. 其次，使用kNN稀疏化，并将带权重的矩阵$S^m$转为无权重矩阵$\hat S^m$，如**公式(2)**$\hat S^m_{ij}=\begin{cases}
+    1 & S^m_{ij}∈topk(S^m_i) \\
+    0 & otherwise
+\end{cases}$，其中，将$1$定义为两个物品$i$和$j$有**潜在联系**，需要注意是$\hat S^m$不同于**LATTICE**中带权重的相似性矩阵。
+3. 然后，同样地对矩阵$\hat S^m$归一化，得到矩阵$\widetilde{S}^m=(D^m)^{-\frac{1}{2}}\hat{S}^m(D^m)^{-\frac{1}{2}}$。
+4. 再然后，对每个模态的$\widetilde{S}^m$进行整合，如**公式(3)**$S=\sum\limits_{m\in M}\alpha_m\widetilde{S}^m$，其中，$\alpha_m$表示**模态**$m$的**重要性评分**，$M$是**模态集**。在此，定义模态集$M=\{v,t\}$，定义超参数$\alpha_v$表示视觉模态的重要性，并令$\alpha_t=1-\alpha_v$。
+5. 最后，**冻结潜在物品-物品图**$S$得到$S-Frozen$。
+
+#### 2.Denoising User-Item Bipartite Graph
+
 ## LATTICE(Mining Latent Structures for Multimedia Recommendation)
-先前的工作
+先前的工作是使用**多模态特征**作为**副信息**来对**“用户-物品”交互**建模，但是这种方式不适合推荐系统。具体来说，只是通过**高阶“物品-用户-物品”关系**来隐式地建模**协同“物品-物品”关系**。
+
+> The majority of previous work focuses on modeling **user-item interactions** with **multimodal features** included as **side information**. However, this scheme is not well-designed for multimedia recommendation. Specifically, only **collaborative item-item relationships** are implicitly modeled through **high-order item-user-item relations**.
 
 ### 模型框架
 $U$和$I$为用户集和物品集，$u$表示一个用户，$u∈U$。如果用户$u$与物品$i$有关联，那么说有正反馈，用$y_{ui}=1$表示，其中$i∈I^u$。用$x_u,x_i∈R^d$表示某个用户和物品的输入ID嵌入，其中$d$表示嵌入层的维度。用$e^m_i∈R^{d_m}$表示物品$i$的某个模态的特征，其中$d_m$表示某个模特下的特征的维度，用$m∈M$表示模态，$M$表示模态集。
 
-模型共分为3各部分：1.Modality-aware Latent Structure Learning，2.Graph Convolutions和3.Combining with Collaborative Filtering。如下图。
+模型共分为3个部分：1.Modality-aware Latent Structure Learning，2.Graph Convolutions和3.Combining with Collaborative Filtering。如下图。
 ![picture 1](assets/images/1685004655739.png)
 
 #### 1. Modality-aware Latent Structure Learning
-##### 第一步，Constructing initial 𝑘NN modality-aware graphs $\widetilde{S^m}$
+##### 第一步，Constructing initial 𝑘NN modality-aware graphs $\widetilde{S}^m$
 1. 首先，对于$e^m_i$，计算与另一特征$e^m_j$之间的**余弦相似度**，得到图邻接矩阵$S^m_{ij}$，如下**公式(1)**$S^m_{ij}=\frac{(e^m_i)^Te^m_j}{||e^m_i||||e^m_j||}$。
 2. 其次，控制邻接矩阵的元素非负，范围为$[0,1]$。
 3. 然后，利用`kNN`稀疏化邻接矩阵，如下**公式(2)**$\hat{S^m_{ij}}=\begin{cases}
     S^m_{ij} & S^m_{ij}∈topk(S^m_i) \\
     0 & otherwise
 \end{cases}$，其中结果$\hat{S^m}$是**稀疏化的有向图邻接矩阵**。
-4. 最后，对$\hat{S^m}$进行归一化，如下**公式(3)**$\widetilde{S^m}=(D^m)^{-\frac{1}{2}}\hat{S^m}(D^m)^{-\frac{1}{2}}$，其中$D^m$表示$\hat{S^m}$的**对角度矩阵**，其计算方法为$D^m_{ii}=\sum_{j}\hat{S^m_{ij}}$，由此可以看出$D^m$只有对角线元素，元素值为$\hat{S^m}$的第$i$行元素之和。
+4. 最后，对$\hat{S}^m$进行归一化，如下**公式(3)**$\widetilde{S}^m=(D^m)^{-\frac{1}{2}}\hat{S}^m(D^m)^{-\frac{1}{2}}$，其中$D^m$表示$\hat{S}^m$的**对角度矩阵**，其计算方法为$D^m_{ii}=\sum_{j}\hat{S}^m_{ij}$，由此可以看出$D^m$只有对角线元素，元素值为$\hat{S}^m$的第$i$行元素之和。
 
 ##### 第二步，Learning latent structures $A^m$
-1. 首先，对于$e^m_i$，计算**high-level feature vector**，如下**公式(4)**$\widetilde{e^m_i}=W_me^m_i+b_m$，其中，$W_m \in R^{d'\times d_m}$定义为**trainable transformation matrix**，$b_m \in R^{d'}$。
-2. 然后，对$\widetilde{e^m_i}$根据公式(1)(2)(3)计算出邻接矩阵$\widetilde{A^m}$。
-3. 最后，根据**公式(5)**$A^m=\lambda \widetilde{S^m}+(1-\lambda) \widetilde{A^m}$，得出最终的**图邻接矩阵**，其中，系数$\lambda \in (0,1)$，$\widetilde{S^m}$为上一步最后的计算结果。
+1. 首先，对于$e^m_i$，计算**high-level feature vector**，如下**公式(4)**$\widetilde{e}^m_i=W_me^m_i+b_m$，其中，$W_m \in R^{d'\times d_m}$定义为**trainable transformation matrix**，$b_m \in R^{d'}$。
+2. 然后，对$\widetilde{e}^m_i$根据公式(1)(2)(3)计算出邻接矩阵$\widetilde{A}^m$。
+3. 最后，根据**公式(5)**$A^m=\lambda \widetilde{S}^m+(1-\lambda) \widetilde{A}^m$，得出最终的**图邻接矩阵**，其中，系数$\lambda \in (0,1)$，$\widetilde{S}^m$为上一步最后的计算结果。
 
 ##### 第三步，Aggregating multimodal latent graphs 得到 $A$
 1. 首先，利用**公式(6)**$A=\sum_{m=0}^{|M|}a_mA^m$计算出最终的**Latent Structure**$A$，其中，$a_m$是模态$m$的重要度评分，$A$是表示多个模态的物品关系的图结构。
@@ -229,7 +250,37 @@ $U$和$I$为用户集和物品集，$u$表示一个用户，$u∈U$。如果用�
 #### 3. Combining with Collaborative Filtering
 在任何CF方法之前使用以上步骤。
 
-将$\widetilde{x_u},\widetilde{x_i}\in R^d$定义为CF方法的用户和物品嵌入的输出。然后，通过增加从物品图中学习到的归一化的物品嵌入$h_i^{(L)}$增强物品嵌入，如**公式(8)**$\hat x_i=\widetilde{x_i}+\frac{h_i^{(L)}}{||h_i^{(L)}||_2}$。最后，计算**用户-物品偏好得分**(the user-item preference score)，如**公式(9)**$\hat y_{ui}=\widetilde x_u^T \hat x_i$。
+将$\widetilde{x}_u,\widetilde{x}_i\in R^d$定义为CF方法的用户和物品嵌入的输出。然后，通过增加从物品图中学习到的归一化的物品嵌入$h_i^{(L)}$增强物品嵌入，如**公式(8)**$\hat x_i=\widetilde{x}_i+\frac{h_i^{(L)}}{||h_i^{(L)}||_2}$。最后，计算**用户-物品偏好得分**(the user-item preference score)，如**公式(9)**$\hat y_{ui}=\widetilde x_u^T \hat x_i$。
 
 #### 4. Optimization
 使用**Bayesian Personalized Ranking (BPR) loss**。
+
+### 实验
+实验回答以下三个问题：
+- How does our model perform compared with the state-of-the-art multimedia recommendation methods and other CF methods in both warm-start and cold-start settings?
+- How effective are the item graph structures learned from multimodal features?
+- How sensitive is our model under the perturbation of several key hyper-parameters?
+
+#### 实验设置
+**数据集**使用**Clothing**, **Sports**, and **Baby**。**模态**有**visual**和**textual**两种。
+![picture 4](assets/images/1685063920356.png)  
+
+#### Baselines
+- MF
+- NGCF
+- LightGCN
+- VBPR
+- MMGCN
+- GRCN
+  
+#### 实验结果
+![picture 5](assets/images/1685063957784.png)  
+***
+![picture 6](assets/images/1685063970282.png) 
+***
+![picture 7](assets/images/1685063990607.png)
+***
+![picture 8](assets/images/1685064001159.png)  
+
+### 结论
+> In this paper, we have proposed **the latent structure mining method**(LATTICE) for multimodal recommendation, which leverages **graph structure learning** to discover **latent item relationships** underlying multimodal features. In particular, we first devise **a modality-aware graph structure learning layer** that learns item graph structures from multimodal features and fuses multimodal graphs. Along **the learned graph structures**, one item can receive **informative high-order affinities** from **its neighbors** by **graph convolutions**. Finally, we combine **our model** with **downstream CF methods** to make recommendations. Empirical results on three public datasets demonstrate the effectiveness of our proposed model.
