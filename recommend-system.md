@@ -231,6 +231,35 @@ FREEDOM也是对每个**模态**$m$的**原始特征**使用**kNN**构建**初�
 
 #### 4.Top-K Recommendation
 
+### 实验
+实验回答以下三个问题：
+- How does FREEDOM perform compared with the state-of-the-art methods for recommendation? As our model improves LATTICE by freezing and denoising the graph structures, how about its improvement over LATTICE?
+- How efficient of our proposed FREEDOM in terms of computational complexity and memory cost?
+- How do different components in FREEDOM  influence its recommendation accuracy?
+- How sensitive is our model under the perturbation of hyperparameters?
+
+#### 实验设置
+**数据集**使用**Clothing**, **Sports**, and **Baby**。**模态**有**visual**和**textual**两种。
+![picture 9](assets/images/1685259580643.png)  
+
+#### Baselines
+使用**通用CF推荐模型**和**多模态推荐模型**。
+- BPR，CF模型
+- LightGCN，CF模型
+- VBPR，以下都是多模态推荐模型
+- GRCN
+- DualGNN
+- LATTICE
+- SLMRec
+
+#### 实验结果
+![picture 10](assets/images/1685259927365.png)  
+![picture 11](assets/images/1685259940289.png)  
+![picture 12](assets/images/1685259948749.png)  
+![picture 13](assets/images/1685259961343.png)  
+
+### 结论
+> In this paper, we experimentally reveal that the graph structure learning in a state-of-the-art multimodal recommendation model (i.e. LATTICE) plays a trivial role in its performance. It is the item-item graph constructed from raw multimodal features that contributes to the recommendation accuracy. Based on the finding, we propose a model that freezes the item-item graph and denoises the user-item graph simultaneously for multimodal recommendation. In denoising, we devise a degree-sensitive edge pruning method to sample the user-item graph, which shows better performance than the random edge dropout for recommendation. Finally, we conduct extensive experiments to demonstrate the proposed model not only outperforms the baselines with a large margin but also can reduce the memory cost of LATTICE by 6× on large graphs.
 
 ## LATTICE(Mining Latent Structures for Multimedia Recommendation)
 先前的工作是使用**多模态特征**作为**副信息**来对**“用户-物品”交互**建模，但是这种方式不适合推荐系统。具体来说，只是通过**高阶“物品-用户-物品”关系**来隐式地建模**协同“物品-物品”关系**。
