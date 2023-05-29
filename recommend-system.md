@@ -196,6 +196,8 @@ $a_{out}$表示输出层激活函数，$\vec h$表示边权。
 
 ### 模型框架
 模型共分为四个部分：1.Constructing Frozen Item-Item Graph；2.Denoising User-Item Bipartite Graph；3.Integration of Two Graphs for Learning；4.Top-K Recommendation。
+![picture 14](assets/images/1685345510319.png)  
+
 
 #### 1.Constructing Frozen Item-Item Graph $S-Frozen$
 FREEDOM也是对每个**模态**$m$的**原始特征**使用**kNN**构建**初始模态感知“物品-物品”图**$S^m$。
