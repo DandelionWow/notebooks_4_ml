@@ -336,3 +336,38 @@ $U$和$I$为用户集和物品集，$u$表示一个用户，$u∈U$。如果用�
 
 ### 结论
 > In this paper, we have proposed **the latent structure mining method**(LATTICE) for multimodal recommendation, which leverages **graph structure learning** to discover **latent item relationships** underlying multimodal features. In particular, we first devise **a modality-aware graph structure learning layer** that learns item graph structures from multimodal features and fuses multimodal graphs. Along **the learned graph structures**, one item can receive **informative high-order affinities** from **its neighbors** by **graph convolutions**. Finally, we combine **our model** with **downstream CF methods** to make recommendations. Empirical results on three public datasets demonstrate the effectiveness of our proposed model.
+
+## GETNext(GETNext: Trajectory Flow Map Enhanced Transformer for Next POI Recommendation)
+**Next PoI Recommendation**用于根据用户当前状态和历史信息来预测用户的**immediate future movements**。这个问题需要考虑各种数据的趋势（如空间位置、时间背景和用户偏好等）。
+
+现有方法把**Next PoI Recommendation**视为**序列预测问题**，忽略了来自**其他用户**的**协作信号**。现有方法有三个不足点：1）对比长轨迹，在短轨迹上的性能显著下降；2）对那些非活跃用户的推荐精确度低；3）无法建立时间和POI类别间的桥梁。
+
+本文提出了**user-agnostic global trajectory flow map**和**GETNext**模型，可以更好地利用**协作信号**来做更精确的**Next POI Recommendation**。同时，缓解了冷启动问题。
+
+文中提出三个问题：
+1. How to aggregate information from check-in sequences to form a unified representation of global trajectory flow patterns?
+构建了一个**user-agnostic trajectory flow map**。使用**图卷积网络**将**POI**嵌入到**潜在空间**中，使之保持**POI间的全局过渡**（the global transitions among POIs）。
+
+2. How to reserve the important spatio-temporal contextual information such as category information and user preference besides these trajectory flows?
+利用**the embedding layers**捕获**用户的总体偏好**、**POI类别嵌入**。利用**a time2vec model**来描述**时间嵌入**。为了连接POI类别和时间，利用**a fusion module**合并**POI类别嵌入**和**时间嵌入**，得到**the time-aware category context embedding**。
+
+3. How to leverage all information above in next POI recommendation, to strike a balance between generic movement patterns and personalized demands?
+利用**transformer**和**几个MLP**。
+
+### 问题公式化(PROBLEM FORMULATION)
+- 设置**用户集**为$U=\{u_1,u_2,...,u_M\}$
+- 设置**POIs集**为$P=\{p_1,p_2,...,p_N\}$，例如特定的餐厅、酒店等。
+- 设置**时间戳集**为$T=\{t_1,t_2,...,t_K\}$。
+- 以上的$M,N,K$均为**正整数**。
+- 每个**POI** $p\in P$ 定义为一个**元组** $p=\lang lat,lon,cat,freq\rang$，其中$lat,lon,cat,freq$分别表示**纬度**，**经度**，**类别**和**check-in序列**。特别地，$cat$（类别）是取自**POI类别**的固定列表（如“火车站”，“酒吧”）。
+- 定义**check-in**为一个**元组** $q=\lang u,p,t\rang\in U\times P\times T$，表示某个用户$u$在某个时间戳$t$去了某个POI $p$。
+- 定义某个**用户**$u\in U$的**check-in序列**为$Q_u=(q_u^1,q_u^2,q_u^3,...)$，其中$q_u^i$表示第$i$个**check-in**记录。**所有用户**的**check-in序列**为$Q_U=\{Q_{u_1},Q_{u_2},...,Q_{u_M}\}$。
+- **数据预处理**，将任意用户$u$的**check-in序列**$Q_u$拆分为**一组连续轨迹**$Q_u=S_u^1\oplus S_u^2\oplus \cdot\cdot\cdot$，其中，$\oplus$定义为**串联**操作，$\{S_u^i\}_{i\in \mathbb{N},u\in U}$为某**用户**$u$的**历史轨迹**集合。
+- **Next POI Recommendation**的目标是：学习给出的特定用户$u\in U$的**历史轨迹集合**$\{S_u^i\}$和**当前轨迹**$S^\prime=(q_1,q_2,...,q_m)$，预测未来用户$u$最有可能访问的**POIs**（$q_{m+1},q_{m+2},...,q_{m+k}$），其中，$k\geq 1$是**小整数**，通常$k=1$。
+
+### 模型框架 GETNext
+#### Learning with Trajectory Flow Map
+##### POI Embedding
+定义**Trajectory Flow Map**是一个**带有属性的加权有向图**$\mathcal{G}=(V,E,l,w)$。
+- **节点集**$V=$ **POIs集**$P$。
+- 
