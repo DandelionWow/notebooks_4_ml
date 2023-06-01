@@ -362,12 +362,86 @@ $U$和$I$为用户集和物品集，$u$表示一个用户，$u∈U$。如果用�
 - 每个**POI** $p\in P$ 定义为一个**元组** $p=\lang lat,lon,cat,freq\rang$，其中$lat,lon,cat,freq$分别表示**纬度**，**经度**，**类别**和**check-in序列**。特别地，$cat$（类别）是取自**POI类别**的固定列表（如“火车站”，“酒吧”）。
 - 定义**check-in**为一个**元组** $q=\lang u,p,t\rang\in U\times P\times T$，表示某个用户$u$在某个时间戳$t$去了某个POI $p$。
 - 定义某个**用户**$u\in U$的**check-in序列**为$Q_u=(q_u^1,q_u^2,q_u^3,...)$，其中$q_u^i$表示第$i$个**check-in**记录。**所有用户**的**check-in序列**为$Q_U=\{Q_{u_1},Q_{u_2},...,Q_{u_M}\}$。
-- **数据预处理**，将任意用户$u$的**check-in序列**$Q_u$拆分为**一组连续轨迹**$Q_u=S_u^1\oplus S_u^2\oplus \cdot\cdot\cdot$，其中，$\oplus$定义为**串联**操作，$\{S_u^i\}_{i\in \mathbb{N},u\in U}$为某**用户**$u$的**历史轨迹**集合。
-- **Next POI Recommendation**的目标是：学习给出的特定用户$u\in U$的**历史轨迹集合**$\{S_u^i\}$和**当前轨迹**$S^\prime=(q_1,q_2,...,q_m)$，预测未来用户$u$最有可能访问的**POIs**（$q_{m+1},q_{m+2},...,q_{m+k}$），其中，$k\geq 1$是**小整数**，通常$k=1$。
+- **数据预处理**，将任意用户$u$的**check-in序列**$Q_u$拆分为**一组连续轨迹**$Q_u=S_u^1\oplus S_u^2\oplus \cdot\cdot\cdot$，其中，$\oplus$定义为**串联**操作，$S_u^i$为某**用户**$u$的**历史轨迹**集合。
+- **Next POI Recommendation**的目标是：学习给出的**历史轨迹集合**$\mathcal{S}=\{S_u^i\}_{i\in \mathbb{N},u\in U}$和**当前轨迹**$S^\prime=(q_1,q_2,...,q_m)$，预测未来用户$u$最有可能访问的**POIs**（$q_{m+1},q_{m+2},...,q_{m+k}$），其中，$k\geq 1$是**小整数**，通常$k=1$。
 
 ### 模型框架 GETNext
+下图为GETNext模型，模型融合了几个关键的模块。
+![picture 15](assets/images/1685581695661.png)
+
 #### Learning with Trajectory Flow Map
+在本节中，定义了**trajectory flow map**，并利用它生成了**POI Embedding**（编码了每个POI的`users' generic movement patterns`，并且合并了每个POI的类别、位置和check-in频率）和**Transition Attention Map**（模拟了POIs之间的`transition probabilities`）。
+
 ##### POI Embedding
+在**trajectory flow map**上训练**GNN(Graph Neural Network)**生成**POI Embedding**。
+
 定义**Trajectory Flow Map**是一个**带有属性的加权有向图**$\mathcal{G}=(V,E,l,w)$。
 - **节点集**$V=$ **POIs集**$P$。
-- 
+- $\ell(p)$表示**属性**。
+- $E$表示**边集**。若$(p_1,p_2)$出现在**一个轨迹**$S_u^i$中，则存在**一条边**从$p_1$到$p_2$，即它们可被连续访问。
+- $w(p_1,p_2)$是**权重**，表示**边**$(p_1,p_2)$出现在**历史轨迹**$\mathcal{S}$中的**次数**。
+
+利用**图卷积网络**和$\mathcal{G}$生成**POI Embedding矩阵**，分为以下三个步骤。
+
+首先，计算**归一化的拉普拉斯矩阵**，如**公式(1)**$\widetilde{\mathbf{L}}=(\mathbf{D}+\mathbf{I}_N)^{-1}(\mathbf{A}+\mathbf{I}_N)$，其中，$\mathbf{A}\in\mathbb{R}^{N\times N}$定义为$\mathcal{G}$的邻接矩阵，$\mathbf{D}$为$\mathcal{G}$的度矩阵，$\mathbf{I}_N$为$\mathcal{G}$的的单位矩阵。
+``` python
+# in train.py
+raw_A = load_graph_adj_mtx(args.data_adj_mtx) # G的邻接矩阵A in 公式(1)
+A = calculate_laplacian_matrix(raw_A, mat_type='hat_rw_normd_lap_mat') # 公式(1) 计算拉普拉斯矩阵
+```
+然后，定义$\mathbf{H}^{(0)}=\mathbf{X}\in\mathbb{R}^{N\times C}$为**输入节点特征矩阵**。定义**GCN层之间**的**传播规则**为**公式(2)**$\mathbf{H}^{(l)}=\sigma(\widetilde{\mathbf{L}}\mathbf{H}^{(l-1)}\mathbf{W}^{(l)}+\mathbf{b}^{(l)})$，其中，$\mathbf{H}^{(l-1)}$定义为第$l$层的输入信号（$l>0$），$\mathbf{W}^{(l)}\in\mathbb{R}^{C\times\Omega}$表示第$l$层的**权重矩阵**，$b^{(l)}\in\mathbb{R}^{C\times\Omega}$表示相关偏置，$\sigma$表示`leaky ReLU`激活函数（`leaky rate`为0.2）。
+
+最后，堆叠了$l^*$个GCN层，在最后一层之前使用`Dropout`，GCN模型的输出可以表示为**公式(3)**$e_\mathbf{P}=\widetilde{\mathbf{L}}\mathbf{H}^{(l^*)}\mathbf{W}^{(l^*+1)}+\mathbf{b}^{(l^*+1)}\in\mathbb{R}^{N\times\Omega}$，其中，POI$p_i$的嵌入$e_{p_i}$是矩阵$e_\mathbf{P}\in\mathbb{R}^{N\times\Omega}$的第$i$行。
+``` python
+# class GCN in model.py
+# def GCN init
+def __init__(self, ninput, nhid, noutput, dropout):
+    super(GCN, self).__init__()
+
+    self.gcn = nn.ModuleList()
+    self.dropout = dropout
+    self.leaky_relu = nn.LeakyReLU(0.2)
+
+    channels = [ninput] + nhid + [noutput]
+    for i in range(len(channels) - 1):
+        gcn_layer = GraphConvolution(channels[i], channels[i + 1])
+        self.gcn.append(gcn_layer)
+# def GCN forward
+def forward(self, x, adj):
+    for i in range(len(self.gcn) - 1):
+        x = self.leaky_relu(self.gcn[i](x, adj)) # 公式(2)
+
+    x = F.dropout(x, self.dropout, training=self.training) # 最后一层前使用Dropout
+    x = self.gcn[-1](x, adj) # 公式(3)
+
+    return x
+```
+> **POI Embedding的作用**
+> Loosely speaking, the embedding of a POI $p$ indicates **the position** of $p$ within **the historical trajectories of all users** and thus captures **generic movement patterns** at $p$. It will be in turn fed to **the transformer downstream** to model **users’ visiting behaviors**. Note that even when **the current trajectory is short**, the POI embeddings nevertheless provides **rich information** to the prediction model.
+
+> 1.为什么POI Embedding会表示所有用户在历史轨迹中的POI位置呀？
+> 2.为什么是只隐式地捕获图$\mathcal{G}$的`generic movement patterns`？
+
+##### Transition Attention Map
+为了放大**集体信号**（`the collection signals`）的影响，提出了`Transition Attention Map`来显式地模拟从一个POI到另一个的**转移概率**（`the transition probabilities`）。这些**转移概率**用于调整**最终的POI预测**。
+
+给出输入节点特征$\mathrm{X}$和图$\mathcal{G}$，计算注意力图$\Phi$。如**公式(4)**$\Phi_1=(\mathrm{X}\times\mathrm{W}_1)\times\alpha_1\in\mathbb{R}^{N\times 1}$，**公式(5)**$\Phi_2=(\mathrm{X}\times\mathrm{W}_2)\times\alpha_2\in\mathbb{R}^{N\times 1}$和**公式(6)**$\Phi=(\Phi_1\times 1^T+1\times\Phi_1^T)\odot(\widetilde{\mathrm{L}}+J_N)\in\mathbb{R}^{N\times N}$，其中$\mathrm{W}_1,\mathrm{W}_2\in\mathbb{R}^{C\times h}$表示可训练的**特征变换矩阵**，$\alpha_1,\alpha_2\in\mathbb{R}^{h}$表示可训练向量用于反向传播构建**注意矩阵**，$1\in\mathbb{R}^{N\times 1}$是一个全为一的**向量**，$J_N$表示元素全为一的**矩阵**，$\odot$表示两个矩阵**逐个元素相乘**，并将**拉普拉斯矩阵**$\widetilde{\mathrm{L}}$的取值范围从$[0,1]$改为$[1,2]$（为了避免**零值**）。
+``` python
+# def class NodeAttnMap in model.py
+# in train.py
+node_attn_model = NodeAttnMap(in_features=X.shape[1], nhid=args.node_attn_nhid, use_mask=False) # 公式(4,5,6)
+# 'get transition attention map' in methon adjust_pred_prob_by_graph
+attn_map = node_attn_model(X, A)
+```
+
+`Transition Attention Map`$\Phi$的第$i$行表示POI$p_i$到其他每个POI的概率（未归一化）。对`GETNext`中最后的`Transformer层`生成的POI，去$\Phi$中查找对应行的概率值，以调整最终的推荐结果。
+
+#### Contextual Embedding Module
+时空因素和用户偏好是个性化`next POI recommendations`的关键因素。下面将融合`user embeddings`和`POI embeddings`为`POI-User Embeddings`，融合`POI category embeddings`和`time encoding`为`Time-Category Embeddings`。
+
+##### POI-User Embeddings Fusion
+对于`user embeddings`，训练一个`embedding layer`将每个用户投影到一个低维向量上，每个用户的`embedding`是从用户自己的历史`check-in`序列中学习的。可表示为**公式(7)**$\mathrm{e}_u=f_{embed}(u)\in\mathbb{R}^\Omega$。
+
+为了构建`POI-User Embeddings`，先将`POI embedding`和`user embedding`做`concat`操作，再将已串联的向量送入`dense layer`去`fine-tune`已融合的嵌入。可表示为公式(8)$\mathrm{e}_{p,u}=\sigma(\mathrm{w}_{p,u}[\mathrm{e}_p;\mathrm{e}_u]+b_{p,u})\in\mathbb{R}^{\Omega\times 2}$，其中，$\mathrm{w}_{p,u}$为权重向量，$b_{p,u}$为偏置，$[\cdot;\cdot]$表示串联操作。融合后，嵌入向量的大小保持不变，`POI-User Embeddings`的维度是`POI embedding`或`user embedding`维度的二倍。
+
+##### Time-Category Embeddings Fusion
