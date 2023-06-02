@@ -441,7 +441,77 @@ attn_map = node_attn_model(X, A)
 
 ##### POI-User Embeddings Fusion
 对于`user embeddings`，训练一个`embedding layer`将每个用户投影到一个低维向量上，每个用户的`embedding`是从用户自己的历史`check-in`序列中学习的。可表示为**公式(7)**$\mathrm{e}_u=f_{embed}(u)\in\mathbb{R}^\Omega$。
+``` python
+# def 'UserEmbeddings model' in model.py
+# in train.py
+# init model 
+num_users = len(user_id2idx_dict)
+user_embed_model = UserEmbeddings(num_users, args.user_embed_dim) # user嵌入模型初始化
+# generate 'user embedding' in method input_traj_to_embeddings
+user_id = traj_id.split('_')[0]
+user_idx = user_id2idx_dict[user_id]
+input = torch.LongTensor([user_idx]).to(device=args.device)
+user_embedding = user_embed_model(input) # 公式(7)
+user_embedding = torch.squeeze(user_embedding)
+```
 
 为了构建`POI-User Embeddings`，先将`POI embedding`和`user embedding`做`concat`操作，再将已串联的向量送入`dense layer`去`fine-tune`已融合的嵌入。可表示为公式(8)$\mathrm{e}_{p,u}=\sigma(\mathrm{w}_{p,u}[\mathrm{e}_p;\mathrm{e}_u]+b_{p,u})\in\mathbb{R}^{\Omega\times 2}$，其中，$\mathrm{w}_{p,u}$为权重向量，$b_{p,u}$为偏置，$[\cdot;\cdot]$表示串联操作。融合后，嵌入向量的大小保持不变，`POI-User Embeddings`的维度是`POI embedding`或`user embedding`维度的二倍。
+``` python
+# in train.py
+# generate fused POI-User Embedding in method input_traj_to_embeddings
+fused_embedding1 = embed_fuse_model1(user_embedding, poi_embedding) # 公式(8)
+```
 
 ##### Time-Category Embeddings Fusion
+用户的访问行为自然是有时间依赖的，如下图，展示了两个POI Category（“train station”和“bar”）在不同时间段的访问行为。例如，对于`next POI recommendation`，早上8点应该去`train station`而不是去`bar`。
+![picture 17](assets/images/1685667502736.png)  
+
+首先，使用`time2vector`对`time`编码。具体说，将24小时划分为48个时段，每个时段30分钟，将一个时间标量投影到时段上。时段$t$的嵌入可以表示为$\mathrm{e}_t$（是一个长度为$k+1$的向量）。向量中第$i$个元素可以表示为**公式(9)**$\mathrm{e}_t[i]=\begin{cases}
+    \omega_i t+\varphi_i, & if\ i=0. \\
+    \sin(\omega_i t+\varphi_i), & if\ 1 \leq i \leq k.
+\end{cases}$，其中，$omega$和$\varphi$为可训练的参数，$\sin$为激活函数。
+``` python
+# def 'time2vector model' in model.py
+# in train.py
+# init model
+time_embed_model = Time2Vec('sin', out_dim=args.time_embed_dim) # time嵌入模型初始化
+# generate 'time embedding' in method input_traj_to_embeddings
+time_embedding = time_embed_model(
+    torch.tensor([input_seq_time[idx]], dtype=torch.float).to(device=args.device)) # 公式(9)
+time_embedding = torch.squeeze(time_embedding).to(device=args.device)
+```
+
+然后，对`POI categories`使用`embedding layer`，类别$c$的嵌入可以表示为**公式(10)**$\mathrm{e}_c=f_{embed}(c)\in\mathbb{R}^\Psi$，其中$\Psi$为$\mathrm{e}_c$的维度。
+``` python
+# def 'CategoryEmbeddings model' in model.py
+# in train.py
+# init model
+cat_embed_model = CategoryEmbeddings(num_cats, args.cat_embed_dim) # category嵌入模型初始化
+# generate 'category embedding' in method input_traj_to_embeddings
+cat_idx = torch.LongTensor([input_seq_cat[idx]]).to(device=args.device)
+cat_embedding = cat_embed_model(cat_idx) # 公式(10)
+cat_embedding = torch.squeeze(cat_embedding)
+```
+
+最后，对`time embedding` $\mathrm{e}_t$和`category embedding` $\mathrm{e}_c$进行融合，可以表示为**公式(11)**$\mathrm{e}_{c,t}=\sigma(\mathrm{w}_{c,t}[\mathrm{e}_t;\mathrm{e}_c]+b_{c,t})\in\mathbb{R}^{\Psi\times 2}$，其中，$\mathrm{w}_{c,t}$为可训练的权重向量，$b_{c,t}$为偏置。
+``` python
+# def 'FuseEmbeddings model' in model.py
+# in train.py
+# init model
+embed_fuse_model2 = FuseEmbeddings(args.time_embed_dim, args.cat_embed_dim) # time-category 嵌入融合模型初始化
+# generate fused Time-Category Embedding in method input_traj_to_embeddings
+fused_embedding2 = embed_fuse_model2(time_embedding, cat_embedding) # 公式(11)
+```
+
+最后的最后，将两个已融合的嵌入（$\mathrm{e}_{p,u}$和$\mathrm{e}_{c,t}$）再次融合为$\mathrm{e}_q=[\mathrm{e}_{p,u};\mathrm{e}_{c,t}]$，$\mathrm{e}_q$表示`check-in` $q=\lang p,u,t\rang$的嵌入。因此，每个输入轨迹$(q_1,...,q_s)$可以由`check-in embeddings`表示为$(\mathrm{e}_{q_1},...,\mathrm{e}_{q_s})$。再将`check-in embeddings`传给下一层`transformer encoder`。
+``` python
+# in train.py
+# fuse 'POI-User Embeddings' and 'Time-Category Embeddings' in the method of input_traj_to_embeddings
+concat_embedding = torch.cat((fused_embedding1, fused_embedding2), dim=-1) # 合并4.3.1和4.3.2两个嵌入
+```
+
+#### Transformer Encoder and MLP Decoders
+##### Transformer Encoder
+目标是根据给出的`check-in`序列只预测`next immediate POI`，所以只采用`transformer encoder`和几个`MLP`层（未使用`transformer decoder`）。
+
+给出输入轨迹$S_u=(q_u^1,q_u^2,...,q_u^k)$，预测在`next check-in activity`$q_u^{k+1}$中的POI。
