@@ -514,4 +514,26 @@ concat_embedding = torch.cat((fused_embedding1, fused_embedding2), dim=-1) # 合
 ##### Transformer Encoder
 目标是根据给出的`check-in`序列只预测`next immediate POI`，所以只采用`transformer encoder`和几个`MLP`层（未使用`transformer decoder`）。
 
-给出输入轨迹$S_u=(q_u^1,q_u^2,...,q_u^k)$，预测在`next check-in activity`$q_u^{k+1}$中的POI。
+给出输入轨迹$S_u=(q_u^1,q_u^2,...,q_u^k)$，预测在`next check-in activity`$q_u^{k+1}$中的POI。在4.3节中，得到了`check-in embedding`。
+
+##### MLP Decoders
+
+##### Loss
+对POI和POI类别损失，使用交叉熵；对于时间，使用均方误差损失，但时间损失的尺度明显小于其他两个，所以将其尺度放大10倍。可以表示为**公式(23)**$\mathcal{L}_{final}=\mathcal{L}_{poi}+10\times\mathcal{L}_{time}+\mathcal{L}_{cat}$。
+
+### 实验
+#### 数据集处理
+论文的数据集是`FourSquare-NYC`，`FourSquare-TKY`，`Gowalla-CA`。
+
+对于`FourSquare-NYC`，取的是Apr. 2012到Feb. 2013的纽约的数据；对于`FourSquare-TKY`，时间同上，地区是东京；对于`Gowalla-CA`，取的是Feb. 2009 到Oct. 2010的加州和内华达州的数据。
+
+对于三个数据集，都排除了少于10条交互记录的POIs，也过滤掉了历史记录少于10条的用户。
+
+每个用户的整个历史轨迹以`24小时间隔`分割为轨迹（`trajectory`），若某个`trajectory`中只有一条交互记录，则过滤掉。
+
+按时间顺序将数据集分为训练集、验证集、测试集。前80%为训练集，中间10%是验证集，最后10%是测试集。若某个用户或POI未出现在训练中，而出现在测试中，预测性能时跳过该用户或POI。
+
+每条记录都包含`user`、`POI`、`POI Category`、`GPS信息`、`时间戳`。
+
+数据集的统计如下图：
+![picture 18](assets/images/1687163939294.png)  
