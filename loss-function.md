@@ -118,6 +118,29 @@ $$L_{tri} = \max(d(i,s) - d(i,s_p) + margin, 0) + \max(d(i,s) - d(i_n,s) + margi
 
 其中，$d(i,s)$表示图像和文本嵌入向量之间的欧氏距离。
 
+#### Improving Cross-Modal Retrieval with Set of Diverse Embeddings [LINK](https://arxiv.org/pdf/2211.16761.pdf)
+
+#### Cross-modal Semantic Enhanced Interaction for Image-Sentence Retrieval [LINK](https://arxiv.org/pdf/2210.08908)
+
+#### Multi-View Visual Semantic Embedding [LINK](https://www.ijcai.org/proceedings/2022/0158.pdf)
+
+#### Where Does the Performance Improvement Come From? -- A Reproducibility Concern about Image-Text Retrieval [LINK](https://arxiv.org/pdf/2203.03853)
+
+#### More Than Just Attention: Improving Cross-Modal Attentions with Contrastive Constraints for Image-Text Matching [LINK](https://arxiv.org/pdf/2105.09597)
+
+#### Discrete-continuous Action Space Policy Gradient-based Attention for Image-Text Matching [LINK](https://arxiv.org/abs/2104.10406)
+额外提出了一种策略梯度(Policy Gradient)优化了图像-文本匹配中视觉和文本特征的注意力调整。方法中的注意力权重可以被视为从特定模态到公共空间的转换，因为注意力权重在用于匹配的最后一个图像和文本向量中执行向量转换，而不是选择深度学习模型的前一层中的重要特征。
+
+并且这篇文章用到的损失函数较多，如Triplet Loss，交叉熵损失，Image-to-Text Decoding Loss，Text-to-Text Decoding Loss，PG损失。
+
+#### IMRAM: Iterative Matching with Recurrent Attention Memory for Cross-Modal Image-Text Retrieval [LINK](https://arxiv.org/abs/2003.03772)
+
+#### Wasserstein Coupled Graph Learning for Cross-Modal Retrieval (WCGL) [LINK](https://openaccess.thecvf.com/content/ICCV2021/papers/Wang_Wasserstein_Coupled_Graph_Learning_for_Cross-Modal_Retrieval_ICCV_2021_paper.pdf)
+
+#### Learnable Pillar-based Re-ranking for Image-Text Retrieval [LINK](https://arxiv.org/pdf/2304.12570)
+
+使用了Triplet Loss和Contrastive Loss。
+
 ### Contrastive Loss
 Contrastive Loss是一种基于二元组的损失函数，它要求两个相似的样本之间的距离要小于两个不相似的样本之间的距离，同时也加入一个边界来增加难度。它可以用于图文匹配的场景下，比如用于度量图像和文本之间的相似度。
 
@@ -130,7 +153,7 @@ $$L=\sum_ {i=1}^N\max (0,\alpha -s (I_i, T_i)+\max_ {j \neq i}s (I_i, T_j))+\max
 这个公式的含义是，对于每个图像和文本对$(I_i, T_i)$，要使得它们之间的相似度大于它们与其他不匹配的图像或文本之间的相似度，同时也要超过一个边界值。这样可以使得模型更加关注那些难以区分的负样本，从而提高图文嵌入模型的鲁棒性和泛化能力。
 
 #### VSE++: Improving Visual-Semantic Embeddings with Hard Negatives [LINK](https://arxiv.org/abs/1707.05612)
-一个使用到Contrastive Loss的图文匹配的论文举例是《VSE++: Improving Visual-Semantic Embeddings with Hard Negatives》²，这篇论文是在BMVC 2018上发表的，它使用了Contrastive Loss来训练一个图文嵌入模型，比如从图像检索文本，或者从文本检索图像。
+这篇论文是在BMVC 2018上发表的，它使用了Contrastive Loss来训练一个图文嵌入模型，比如从图像检索文本，或者从文本检索图像。
 
 这篇论文的主要贡献是提出了一种使用hard negatives的方法，来提高图文嵌入模型的性能。(就是提出了上述损失函数)
 
